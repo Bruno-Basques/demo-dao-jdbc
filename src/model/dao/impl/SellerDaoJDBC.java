@@ -4,15 +4,18 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import db.DB;
 import db.DbException;
-import model.dao.GenericDao;
+import model.dao.SellerDao;
 import model.entities.Department;
 import model.entities.Seller;
 
-public class SellerDaoJDBC implements GenericDao<Seller>{
+public class SellerDaoJDBC implements SellerDao{
 
 	private Connection conn;	
 	
@@ -39,7 +42,7 @@ public class SellerDaoJDBC implements GenericDao<Seller>{
 	}
 
 	@Override
-	public Seller getById(Integer id) {
+	public Seller getById(Integer sellerId) {
 		
 		PreparedStatement st = null;
 		ResultSet rs = null;
@@ -51,7 +54,7 @@ public class SellerDaoJDBC implements GenericDao<Seller>{
 		try 
 		{			
 			st = conn.prepareStatement(sql);
-			st.setInt(1, id);
+			st.setInt(1, sellerId);
 			rs = st.executeQuery();
 			if(rs.next())
 			{
@@ -91,6 +94,49 @@ public class SellerDaoJDBC implements GenericDao<Seller>{
 	public List<Seller> getAll() {
 		// TODO Auto-generated method stub
 		return null;
+	}
+
+	@Override
+	public List<Seller> getByDepartmentId(Integer departmentId) {
+		
+		PreparedStatement st = null;
+		ResultSet rs = null;
+		String sql = "SELECT seller.*,department.Name as DepName "
+				+ "FROM seller INNER JOIN department "
+				+ "ON seller.DepartmentId = department.Id "
+				+ "WHERE seller.DepartmentId = ? "
+				+ "ORDER BY seller.Name";
+		try 
+		{			
+			st = conn.prepareStatement(sql);
+			st.setInt(1, departmentId);
+			rs = st.executeQuery();
+			List<Seller> sellers = new ArrayList<Seller>();
+			Map<Integer, Department> department = new HashMap<>();
+			while(rs.next())
+			{
+				Department dep = department.get(departmentId);
+				if(dep == null)
+				{
+					dep = instantiateDepartment(rs);
+					department.put(dep.getId(), dep);
+				}				
+				
+				Seller seller = instantiateSeller(rs, dep);
+				sellers.add(seller);
+			}
+			
+			return sellers;
+		}
+		catch(SQLException e)
+		{
+			throw new DbException(e.getMessage());
+		}
+		finally
+		{
+			DB.closeStatement(st);
+			DB.closeResultSet(rs);
+		}
 	}
 
 }
